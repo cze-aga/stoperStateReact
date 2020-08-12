@@ -1,25 +1,41 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import App from './App';
 import * as serviceWorker from './serviceWorker';
 import * as Redux from 'redux'; 
 import * as ReactRedux from 'react-redux';
 
+//function from state to the set of props
+function mapStateToProps (state)
+{
+  return state;
+}
 
-let view = (m) => {
-  let minutes = Math.floor(m.time / 60);
-  let seconds = m.time - (minutes * 60);
-  let secondsFormatted =  `${seconds < 10 ? '0' : ''}${seconds}`;
-  let handler = (event) => {
-    container.dispatch(m.running ? {type:'STOP'} : {type:'START'});
+//funciton from dispatch to props
+//that is where we need to map our events that we want 
+//our component to be able to raise to dispatch the props
+function mapDispatchToProps(dispatch) {
+  return {
+    onStart: () => { dispatch({type: 'START'}); },
+    onStop: () => { dispatch({type: 'STOP'}); },
   };
+}
+
+
+//by definition view is React component
+//it can be wrapped in the connect function for React-redux
+//connect returns another function and that function takes the React component 
+//as the argument
+let StopWatch = ReactRedux.connect(mapStateToProps, mapDispatchToProps)((props) => {
+  let minutes = Math.floor(props.time / 60);
+  let seconds = props.time - (minutes * 60);
+  let secondsFormatted =  `${seconds < 10 ? '0' : ''}${seconds}`;
   
   return <div>
     <p>{minutes}:{secondsFormatted}</p>
-    <button onClick={handler}>{m.running ? 'Stop' : 'Start'}</button>
+      <button onClick={props.running ? props.onStop : props.onStart}>{props.running ? 'Stop' : 'Start'}</button>
   </div>;
-};
+});
 
 
 // let intents = {
@@ -48,9 +64,9 @@ let view = (m) => {
 
 const update = (model = { running: false, time: 0}, intent) => {
   const actions = {
-    'START': (model) => Object.assign(model, {running: true}),
-    'STOP': (model) => Object.assign(model, {running: false}),
-    'TICK': (model) => Object.assign(model, {time: model.time + (model.running ? 1 : 0)})
+    'START': (model) => Object.assign({}, model, {running: true}),
+    'STOP': (model) => Object.assign({}, model, {running: false}),
+    'TICK': (model) => Object.assign({}, model, {time: model.time + (model.running ? 1 : 0)})
   };
   return (actions[intent.type] || (() => model))(model);
 }
@@ -63,12 +79,15 @@ let container = Redux.createStore(update);
 //subsscribe the callback function to be called when 
 //the model changes
 
-const render = () => {
-  ReactDOM.render(view(container.getState()),
-    document.getElementById('root')
-  );
-};
-container.subscribe(render);
+  ReactDOM.render(
+    <ReactRedux.Provider store={container}>
+      <StopWatch/>
+    </ReactRedux.Provider>
+    ,
+    document.getElementById('root'));
+
+// container.subscribe(render);
+
 
 setInterval(() => {
   container.dispatch({type:'TICK'});
